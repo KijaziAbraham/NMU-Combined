@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import DashboardSidebar from '../components/Sidebar';
+import DashboardHeader from '../components/Navbar';
 import api from "../api/api";
+import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -65,76 +68,94 @@ const Profile = () => {
     navigate("/change-password");
   };
 
-  if (loading) return <p>Loading profile...</p>;
-  if (!user) return <p>No user data found</p>;
+  if (loading) return <p className="mt-5 text-center">Loading profile...</p>;
+  if (!user) return <p className="mt-5 text-center">No user data found</p>;
 
   return (
-    <div>
-      <h2>User Profile</h2>
+    <Container fluid>
+      <Row>
+        {/* Sidebar */}
+        <Col className="">
+          <DashboardSidebar 
+          />
+        </Col>
+        {/* Main Content */}
+        <Col md={10} className="">
+          {/* Header */}
+          <DashboardHeader user={user} />
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
-      {success && <div style={{ color: "green" }}>{success}</div>}
+          <h2 className="mb-4">User Profile</h2>
 
-      {!editMode ? (
-        <div>
-          <p><strong>Name:</strong> {user.username || "Not set"}</p>
-          <p><strong>Email:</strong> {user.email || "Not set"}</p>
-          <p><strong>Role:</strong> {user.role || "Not set"}</p>
-          <p><strong>Phone:</strong> {user.phone || "Not set"}</p>
-          <p><strong>Institution ID:</strong> {user.institution_id || "Not set"}</p>
-          {user.department && <p><strong>Department:</strong> {user.department.name}</p>}
+          {error && <div className="alert alert-danger">{error}</div>}
+          {success && <div className="alert alert-success">{success}</div>}
 
-          <button onClick={() => setEditMode(true)}>Edit Profile</button>
-          <button onClick={handleChangePassword}>Change Password</button>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <label>
-            Username:
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              disabled
-            />
-          </label>
+          {!editMode ? (
+            <Card>
+              <Card.Body>
+                <Card.Text><strong>Name:</strong> {user.username || "Not set"}</Card.Text>
+                <Card.Text><strong>Email:</strong> {user.email || "Not set"}</Card.Text>
+                <Card.Text><strong>Role:</strong> {user.role || "Not set"}</Card.Text>
+                <Card.Text><strong>Phone:</strong> {user.phone || "Not set"}</Card.Text>
+                <Card.Text><strong>Institution ID:</strong> {user.institution_id || "Not set"}</Card.Text>
+                {user.department && <Card.Text><strong>Department:</strong> {user.department.name}</Card.Text>}
+                <Button onClick={() => setEditMode(true)} className="me-2 btn btn-success">Edit Profile</Button>
+                <Button onClick={handleChangePassword} className="btn btn-primary">Change Password</Button>
+              </Card.Body>
+            </Card>
+          ) : (
+            <Card>
+              <Card.Body>
+                <Form onSubmit={handleSubmit}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Username:</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      disabled
+                    />
+                  </Form.Group>
 
-          <label>
-            Email:
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-            />
-          </label>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email:</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                  </Form.Group>
 
-          <label>
-            Phone:
-            <input
-              type="text"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-            />
-          </label>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Phone:</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                  </Form.Group>
 
-          <label>
-            Institution ID:
-            <input
-              type="text"
-              name="institution_id"
-              value={formData.institution_id}
-              onChange={handleInputChange}
-            />
-          </label>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Institution Name:</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="institution_name"
+                      value={formData.institution_name}
+                      onChange={handleInputChange}
+                    />
+                  </Form.Group>
 
-          <button type="submit">Save Changes</button>
-          <button type="button" onClick={() => setEditMode(false)}>Cancel</button>
-        </form>
-      )}
-    </div>
+                  <Button type="submit" className="me-2 btn btn-success">Save Changes</Button>
+                  <Button type="button" onClick={() => setEditMode(false)} className="btn btn-danger">Cancel</Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          )}
+        </Col>
+      </Row>
+    </Container>
   );
 };
 

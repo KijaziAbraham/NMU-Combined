@@ -9,7 +9,8 @@ import ReviewPrototypes from "./pages/ReviewPrototypes";
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import ChangePassword from './pages/ChangePassword';
-import ViewPrototype from './pages/ViewPrototype';
+import ViewAllPrototype from './pages/ViewAllPrototype';
+import '../node_modules/bootstrap/dist/css/bootstrap.min.css'
 
 const PrivateRoute = ({ element }) => {
   const token = localStorage.getItem("access_token");
@@ -23,13 +24,13 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<PrivateRoute element={<Dashboard />} />} />
         <Route path="/submit-prototype" element={<PrivateRoute element={<SubmitPrototype />} />} />
-        <Route path="/edit-prototype/:id" element={<PrivateRoute element={<EditPrototype />} />} />
+        <Route path="/prototypes/edit/:id" element={<PrivateRoute element={<EditPrototype />} />} />
         <Route path="/assign-storage/:id" element={<AssignStorage />} /> {}
-        <Route path="/review-prototype/:id" element={<ReviewPrototypes />} />  { }
+        <Route path="/reviews" element={<ReviewPrototypes />} />  
         <Route path="/profile" element={<PrivateRoute element={<Profile />} />} />
         <Route path="/settings" element={<PrivateRoute element={<Settings />} />} />
         <Route path="/change-password" element={<ChangePassword />} />
-        <Route path="/prototypes/:id" element={<ViewPrototype />} />
+        <Route path="/prototypes" element={<PrivateRoute element={<ViewAllPrototype/>} />} />
 
 
       </Routes>
