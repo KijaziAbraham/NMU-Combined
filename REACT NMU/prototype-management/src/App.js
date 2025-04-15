@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import ChangePassword from './pages/ChangePassword';
 import ViewAllPrototype from './pages/ViewAllPrototype';
 import '../node_modules/bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const PrivateRoute = ({ element }) => {
   const token = localStorage.getItem("access_token");

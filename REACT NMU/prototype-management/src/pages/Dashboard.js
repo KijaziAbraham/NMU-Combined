@@ -6,25 +6,12 @@ import DashboardSidebar from '../components/Sidebar';
 import DashboardHeader from '../components/Navbar';
 import SubmitPrototypeModal from "./SubmitPrototype";
 import { Button } from 'react-bootstrap';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -39,28 +26,19 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [availablePrototypeCount, setAvailablePrototypeCount] = useState(0);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [monthlySubmissions, setMonthlySubmissions] = useState({
-    labels: [],
-    datasets: [
-      {
-        label: 'Prototypes Added',
-        data: [],
-        backgroundColor: [],
-      },
-    ],
-  });
+  const [monthlyStats, setMonthlyStats] = useState({ labels: [], data: [] });
+
+  const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
 
   const handleShowSubmitModal = () => setShowSubmitModal(true);
   const handleCloseSubmitModal = () => setShowSubmitModal(false);
-  const navigate = useNavigate();
-  const currentYear = new Date().getFullYear();
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   useEffect(() => {
     fetchUser();
     fetchStorageLocations();
-    fetchInitialPrototypeCount(); // Fetch initial prototype count
-    fetchMonthlyPrototypeSubmissions(currentYear);
+    fetchPrototypeCounts();
+    fetchMonthlyStats();
   }, [currentYear]);
 
   useEffect(() => {
@@ -79,27 +57,34 @@ const Dashboard = () => {
     }
   };
 
-  const fetchInitialPrototypeCount = async () => {
+  const fetchPrototypeCounts = async () => {
     try {
-      const response = await api.get("prototypes/count/"); // New API endpoint for total count
-      setPrototypeCount(response.data.count || 0);
+      const response = await api.get("count/");
+      setPrototypeCount(response.data.your_count || 0);
+      setAvailablePrototypeCount(response.data.available_count || 0);
     } catch (error) {
-      console.error("Error fetching initial prototype count:", error);
+      console.error("Error fetching prototype counts:", error);
     }
   };
 
   const fetchPrototypes = async () => {
     setLoading(true);
     try {
-      const response = await api.get(
-        `prototypes/?search=<span class="math-inline">\{searchTerm\}&storage\_location\=</span>{storageFilter}&page=${currentPage}&page_size=10`
-      );
-      setPrototypes(Array.isArray(response.data) ? response.data : response.data.results || []);
-      setAvailablePrototypeCount(prototypes.filter(p => p.status === 'available').length);
-      setTotalPages(Math.ceil((response.data.count || 1) / 10));
+      const response = await api.get(`prototypes/?search=${searchTerm}&storage_location=${storageFilter}&page=${currentPage}&page_size=10`);
+      const data = response.data;
+      const fetchedPrototypes = Array.isArray(data) ? data : data.results || [];
+
+      const studentPrototypes = fetchedPrototypes.filter(p => p.student && p.student.id === user.id);
+      const otherPrototypes = fetchedPrototypes.filter(p => p.student && p.student.id !== user.id);
+      const sortedPrototypes = [...studentPrototypes, ...otherPrototypes];
+
+      setPrototypes(sortedPrototypes);
+      setTotalPages(Math.ceil(data.count / 10));
     } catch (error) {
       console.error("Error fetching prototypes:", error);
       setPrototypes([]);
+      setAvailablePrototypeCount(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -114,49 +99,13 @@ const Dashboard = () => {
     }
   };
 
-  const fetchMonthlyPrototypeSubmissions = async (year) => {
+  const fetchMonthlyStats = async () => {
     try {
-      const response = await api.get(`prototypes/monthly_submissions/?year=${year}`);
-      const submissionCounts = response.data;
-      const data = months.map(month => submissionCounts[month] || 0);
-      const backgroundColors = data.map(() => {
-        return (context) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-
-          if (!chartArea) {
-            return null;
-          }
-
-          const gradientBg = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-          gradientBg.addColorStop(0, 'rgba(100, 162, 147, 0.8)');
-          gradientBg.addColorStop(1, 'rgba(0, 0, 255, 0.8)');
-          return gradientBg;
-        };
-      });
-
-      setMonthlySubmissions({
-        labels: months,
-        datasets: [
-          {
-            label: 'Prototypes Added',
-            data: data,
-            backgroundColor: backgroundColors,
-          },
-        ],
-      });
+      const response = await api.get("30-day-summary/");
+      console.log("Monthly Stats:", response.data); // <--- ADD THIS
+      setMonthlyStats(response.data);
     } catch (error) {
-      console.error("Error fetching monthly prototype submissions:", error);
-      setMonthlySubmissions({
-        labels: months,
-        datasets: [
-          {
-            label: 'Prototypes Added',
-            data: months.map(() => 0),
-            backgroundColor: 'rgba(100, 162, 147, 0.8)',
-          },
-        ],
-      });
+      console.error("Error fetching monthly stats:", error);
     }
   };
 
@@ -188,53 +137,48 @@ const Dashboard = () => {
 
   const displayedPrototypes = prototypes.slice(0, 6);
 
+  const chartData = {
+    labels: monthlyStats.labels,
+    datasets: [
+      {
+        label: 'Prototypes Uploaded',
+        data: monthlyStats.data,
+        backgroundColor: '#64A293',
+        borderRadius: 10,
+        barThickness: 30,
+      },
+    ],
+  };
+
   const chartOptions = {
     responsive: true,
     plugins: {
-      title: {
-        display: true,
-        text: `Prototype Submissions - ${currentYear}`,
-      },
-      legend: {
-        display: false,
-      },
+      legend: { display: false },
+      title: { display: false },
     },
     scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Number of Prototypes',
-        },
-      },
-      x: {
-        title: {
-          display: true,
-          text: 'Month',
-        },
-      },
+      y: { beginAtZero: true },
     },
   };
 
   return (
-    <div className="dashboard-container">
-      {/* Sidebar Component */}
-      <DashboardSidebar />
-      
-      <div className="main-content p-2 shadow-sm">
-        {/* Header Component */}
-        <DashboardHeader
-          user={user}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          handleShowSubmitModal={handleShowSubmitModal}
-          userRole={userRole}
-        />
+<div className="dashboard-container">
+  <DashboardSidebar />
+  <div className="main-content p-2 shadow-sm">
+    <DashboardHeader
+    
+      user={user}
+      searchTerm={searchTerm}
+      setSearchTerm={setSearchTerm}
+      handleShowSubmitModal={handleShowSubmitModal}
+      userRole={userRole}
+    />
 
-        {/* Dashboard Content - First Section (Cards) */}
-        <div className=" row mb-4 mx-5">
-          <div className="col ">
-            <div className="card card-prototype gradient-card" style={{ width: '390px', height: '129px', border:'none' , borderRadius:'24px'}}>
+
+
+        <div className="row mb-4 mx-5">
+          <div className="col">
+            <div className="card gradient-card" style={{ width: '400px', height: '129px', borderRadius: '24px' }}>
               <div className="card-body">
                 <h5 className="card-title text-white">Your Prototypes</h5>
                 <p className="card-text display-4 text-white">{prototypeCount}</p>
@@ -242,7 +186,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="col">
-            <div className="card card-available gradient-card" style={{ width: '390px', height: '129px' , border:'none' , borderRadius:'24px' }}>
+            <div className="card gradient-card" style={{ width: '400px', height: '129px', borderRadius: '24px' }}>
               <div className="card-body">
                 <h5 className="card-title text-white">Available Prototypes</h5>
                 <p className="card-text display-4 text-white">{availablePrototypeCount}</p>
@@ -250,7 +194,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="col">
-            <div className="card bg-image-card text-white d-flex flex-column justify-content-between" style={{ width: '629px', height: '129px' , border:'none' , borderRadius:'24px'}}>
+            <div className="card bg-image-card text-white" style={{ width: '629px', height: '129px', borderRadius: '24px' }}>
               <div className="">
                 <h5 className="card-title" style={{ color: '#64A293', marginLeft: '20px', marginTop: '20px' }}>Your Innovation Hub</h5>
                 <p className="card-text text-dark" style={{ marginLeft: '20px' }}>Creative design</p>
@@ -261,44 +205,31 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-          {/* Render the Modal Directly in Dashboard */}
-        <div className="prototype-btns d-flex justify-content-start mb-4" style={{marginLeft:'70px'}}>
-        <SubmitPrototypeModal
-          show={showSubmitModal}
-          onHide={handleCloseSubmitModal}
-          onPrototypeSubmitted={() => {
-            console.log("Prototype submitted from modal in Dashboard!");
-            // After submission, re-fetch the total prototype count
-            fetchInitialPrototypeCount();
-            fetchPrototypes();
-            handleCloseSubmitModal();
-          }}
-        />
 
-        {/* Privilege and Export Buttons */}
-        {(userRole === 'admin' || userRole === 'staff') && (
-          <div className="mb-4 mx-5">
-            <div className="d-flex gap-2">
-              <Button variant="outline-primary" onClick={() => handleExport('excel')}>
-                Export as CSV
-              </Button>
-              <Button variant="outline-danger" onClick={() => handleExport('pdf')}>
-                Export as PDF
-              </Button>
+        <div className="prototype-btns d-flex justify-content-start mb-4" style={{ marginLeft: '70px' }}>
+          <SubmitPrototypeModal
+            show={showSubmitModal}
+            onHide={handleCloseSubmitModal}
+            onPrototypeSubmitted={() => {
+              fetchPrototypeCounts();
+              fetchPrototypes();
+              handleCloseSubmitModal();
+            }}
+          />
+          {(userRole === 'admin' || userRole === 'staff') && (
+            <div className="mb-4 mx-5 d-flex gap-2">
+              <Button variant="outline-primary" onClick={() => handleExport('excel')}>Export as CSV</Button>
+              <Button variant="outline-danger" onClick={() => handleExport('pdf')}>Export as PDF</Button>
             </div>
-          </div>
-        )}
-
+          )}
         </div>
 
-        {/* Dashboard Content - Second Section (Grid Cards) */}
         <div className="row mx-5">
-          {/* Left Side - Prototypes List */}
           <div className="col">
-            <div className="card" style={{ width: '100%', maxWidth: '1059px', height: '322px', border: '1px solid #EFEFEF', borderRadius: '24px' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '1059px', height: '350px', border: '1px solid #EFEFEF', borderRadius: '24px' }}>
               <div className="card-body">
                 <h5 className="card-title">Recent Prototypes</h5>
-                <div className="row row-cols-1 row-cols-md-3 g-3 mt-1" style={{ maxHeight: '200px', overflowY: 'none' }}>
+                <div className="row row-cols-1 row-cols-md-3 g-3 mt-1">
                   {displayedPrototypes.map((proto) => (
                     <div key={proto.id} className="col">
                       <div className="prototype-item" style={{ height: '85px', borderLeft: '4px solid #64A293', paddingLeft: '10px' }}>
@@ -307,34 +238,38 @@ const Dashboard = () => {
                       </div>
                     </div>
                   ))}
-                  {displayedPrototypes.length < 6 && Array.from({ length: 6 - displayedPrototypes.length }).map((_, index) => (
-                    <div key={`empty-${index}`} className="col">
-                      <div className="prototype-item placeholder-item" style={{ height: '85px', borderLeft: '4px solid #64A293', paddingLeft: '10px', backgroundColor: ' #FFFFFF' }}>
-                        <p className="mb-0 text-muted">No prototype</p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
                 <div className="mt-3">
-                  <button className="btn btn-outline-success justify-content-center align-content-center mt-3" onClick={navigateToPrototypes}>Preview All</button>
+                  <button className="btn btn-outline-success mt-3" onClick={navigateToPrototypes}>Preview All</button>
                 </div>
               </div>
             </div>
-            {/* Histogram charts */}
+
+            {/* Histogram Chart */}
             <div className="card mt-4" style={{ width: '100%', maxWidth: '1059px', height: '600px', border: '1px solid #EFEFEF', borderRadius: '24px' }}>
               <div className="card-body">
-                <h5 className="card-title">Monthly Prototype Submissions</h5>
-                <Bar data={monthlySubmissions} options={chartOptions} />
+                <h5 className="card-title">Monthly Upload Summary (Over 30 days)</h5>
+                  <div className="w-full md:w-1/2 xl:w-1/3 p-2">
+                      <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={monthlyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="day" angle={0} textAnchor="end" height={60} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="uploads" fill="#64A293" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+
               </div>
             </div>
-
+            </div>
           </div>
 
-          {/* Right Side - Three Cards */}
-          <div className=" col-md-4">
+             {/* Right Side - Three Cards */}
+             <div className=" col-md-4">
             <div className="right-cards">
               <div className="mb-4">
-                <div className="card" style={{ width: '100%', maxWidth: '559px', height: '258px', borderRadius: '24px', border: '1px solid #EFEFEF' }}>
+                <div className="card" style={{ width: '100%', maxWidth: '559px', height: '200px', borderRadius: '24px', border: '1px solid #EFEFEF' }}>
                   <div className="card-body">
                     <div className="avatar">
                       <img
@@ -345,30 +280,24 @@ const Dashboard = () => {
                         height="50"
                       />
                     </div>
-                    <h5 className="card-title">{user?.name || 'User Name'}</h5>
-                    <p className="card-text">{user?.email || 'user@email.com'}</p>
-                    <p className="card-text text-muted">{userRole}</p>
+                    <h5 className="card-title">Username: {user?.username || 'User Name'}</h5>
+                    <p className="card-text"> Email: {user?.email || 'user@email.com'}</p>
+                    <p className="card-text">Role: {userRole}</p>
                     {/* Add more user info here */}
                   </div>
                 </div>
               </div>
               <div className="mb-4">
-                <div className="card" style={{ width: '100%', maxWidth: '559px', height: '258px', borderRadius: '24px', border: '1px solid #EFEFEF' }}>
+                <div className="card" style={{ width: '100%', maxWidth: '559px', height: '200px', borderRadius: '24px', border: '1px solid #EFEFEF' }}>
                   <div className="card-body">
                     <h5 className="card-title"><strong>Institution Details</strong></h5>
                     <p className="card-text">University Name  : {user?.institution_id || 'Nelson Mandela University'}</p>
-                    <p className="card-text">Department/Faculty : {user?.department || 'Department'}</p>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="card" style={{ width: '100%', maxWidth: '559px', height: '258px', borderRadius: '24px', border: '1px solid #EFEFEF' }}>
-                  <div className="card-body">
-                    <h5 className="card-title">Contact</h5>
                     <p className="card-text">Phone number : {user?.phone || 'No contact'}</p>
+
                   </div>
                 </div>
               </div>
+                  
             </div>
           </div>
         </div>

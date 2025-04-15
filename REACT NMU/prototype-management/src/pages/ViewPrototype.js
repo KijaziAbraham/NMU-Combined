@@ -7,6 +7,9 @@ const ViewPrototype = ({ show, onHide, prototypeId }) => {
   const [prototype, setPrototype] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [students, setStudents] = useState([]); // ✅ added
+  const [departments, setDepartments] = useState([]);
+  const [supervisors, setSupervisors] = useState([]); // ✅ define it here!
 
   useEffect(() => {
     const fetchPrototype = async () => {
@@ -14,6 +17,10 @@ const ViewPrototype = ({ show, onHide, prototypeId }) => {
       setLoading(true);
       setError(null);
       setPrototype(null);
+      fetchStudents(); // ✅ fetch students
+      fetchDepartments();
+      fetchSupervisors(); // ✅ added
+
       try {
         const response = await api.get(`prototypes/${prototypeId}/`);
         setPrototype(response.data);
@@ -32,6 +39,49 @@ const ViewPrototype = ({ show, onHide, prototypeId }) => {
     return null;
   }
 
+  const fetchStudents = async () => {
+    try {
+      const response = await api.get("users/students/"); // ✅ Replace with your correct API endpoint
+      setStudents(response.data || []);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
+  };
+
+  const getStudentName = (studentId) => {
+    const student = students.find(s => s.id === studentId);
+    return student ? student.username : 'N/A';
+  };
+
+  const getDepartmentName = (departmentId) => {
+    const department = departments.find((d) => d.id === departmentId);
+    return department ? department.name : "N/A";
+  };
+  
+
+  const fetchSupervisors = async () => {
+    try {
+      const response = await api.get("users/supervisors/"); // ✅ replace with your endpoint
+      setSupervisors(response.data || []);
+    } catch (error) {
+      console.error("Error fetching supervisors:", error);
+    }
+  };
+  
+  const getSupervisorEmail = (supervisorId) => {
+    const supervisor = supervisors.find((s) => s.id === supervisorId);
+    return supervisor ? supervisor.email : "N/A";
+  };
+  
+  const fetchDepartments = async () => {
+    try {
+      const response = await api.get("departments/");
+      setDepartments(response.data || []);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
@@ -46,12 +96,12 @@ const ViewPrototype = ({ show, onHide, prototypeId }) => {
           <div className="grid grid-cols-2 gap-4">
             <p><strong>Title:</strong> {prototype.title}</p>
             <p><strong>Abstract:</strong> {prototype.abstract}</p>
-            <p><strong>Department:</strong> {prototype.department?.name || "N/A"}</p>
-            <p><strong>Student:</strong> {prototype.student?.email || "N/A"}</p>
+            <p><strong>Department:</strong> {getDepartmentName(prototype.department)}</p>
+            <p><strong>Student:</strong> {prototype.username || getStudentName(prototype.student)}</p>
             <p><strong>Academic Year:</strong> {prototype.academic_year}</p>
-            <p><strong>Supervisor:</strong> {prototype.supervisor?.email || "N/A"}</p>
+            <p><strong>Supervisor:</strong> {getSupervisorEmail(prototype.supervisor)}</p>
             <p><strong>Has Physical Prototype:</strong> {prototype.has_physical_prototype ? "Yes" : "No"}</p>
-            <p><strong>Status:</strong> {prototype.status === "submitted_not_reviewed" ? "Submitted (Not Reviewed)" : prototype.status}</p>
+            <p><strong>Status:</strong>{" "}{prototype.status === "submitted_not_reviewed" ? "Submitted (Not Reviewed)": "Submitted (Reviewed)"}</p>
             <p><strong>Barcode:</strong> {prototype.barcode || "N/A"}</p>
             <p><strong>Storage Location:</strong> {prototype.storage_location || "N/A"}</p>
             <p><strong>Feedback:</strong> {prototype.feedback || "No feedback yet"}</p>
