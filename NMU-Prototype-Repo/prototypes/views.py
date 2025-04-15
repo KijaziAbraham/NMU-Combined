@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.parsers import JSONParser
-
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
+from datetime import datetime
+from django.utils import timezone
+from datetime import timedelta
+from collections import defaultdict
 
 @api_view(["GET", "PATCH"])  
 @permission_classes([IsAuthenticated])
@@ -69,9 +74,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def students(self, request):
-        """Admin can retrieve all students"""
-        if request.user.role != "admin":
-            return Response({"error": "Only admins can access this."}, status=403)
+        """Allow admin, staff, and students to view all student users."""
+        
+        # Allow all authenticated users to view, but restrict non-admins from modifying
+        if request.method != "GET":
+            return Response({"error": "You are not allowed to modify this list."}, status=status.HTTP_403_FORBIDDEN)
 
         students = User.objects.filter(role="student")
         serializer = self.get_serializer(students, many=True)
@@ -244,3 +251,45 @@ def change_password(request):
 
     return Response({"detail": "Password updated successfully!"})
 
+
+
+@api_view(['GET'])
+def prototype_count_view(request):
+    user = request.user
+    available_count = Prototype.objects.count()
+    
+    if user.role == 'student':
+        user_count = Prototype.objects.filter(student=user).count()
+    else:
+        # admin or staff can see all
+        user_count = available_count
+
+    return Response({
+        'your_count': user_count,
+        'available_count': available_count,
+    })
+
+@api_view(['GET'])
+def upload_summary_30_days(request):
+    today = timezone.now()  # aware datetime
+    start_date = today - timedelta(days=30)
+
+    # Only use timezone-aware filtering
+    prototypes = Prototype.objects.filter(submission_date__gte=start_date)
+
+    # Initialize day counts
+    days_of_week = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    upload_counts = defaultdict(int)
+
+    for prototype in prototypes:
+        # Make sure submission_date is timezone-aware
+        submission_date = prototype.submission_date
+        if timezone.is_naive(submission_date):
+            submission_date = timezone.make_aware(submission_date)
+        weekday = submission_date.strftime('%a')  # 'Mon', 'Tue', ...
+        upload_counts[weekday] += 1
+
+    # Ensure all 7 days are present
+    data = [{"day": day, "uploads": upload_counts.get(day, 0)} for day in days_of_week]
+
+    return Response(data)
