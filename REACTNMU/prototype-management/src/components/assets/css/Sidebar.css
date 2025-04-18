@@ -1,0 +1,160 @@
+
+.app {
+    display: flex;
+ 
+  }
+  
+  .app-sidebar {
+    width: 270px;
+    max-height: 1000px; 
+    transition: width 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+  }
+  
+  .app .app-sidebar.collapsed {
+    width: 100px;
+    overflow-y:none;
+  }
+
+  
+  
+  .app-sidebar .sidebar-header {
+   display: flex;
+   border: none;
+  }
+  
+  .app-sidebar.collapsed .sidebar-header h3 {
+    display: none;
+  }
+  
+  .app-sidebar .sidebar-toggle {
+    border: none;
+    margin-left: 15px;
+    padding: 0px 8px;
+
+  }
+  
+  .app-sidebar .sidebar-menu {
+    padding: 0;
+    list-style: none;
+    overflow-y: auto; /* Enable scrolling for long menus if content overflows max-height */
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item {
+    display: flex; /* Use flex to align icon and text/tooltip */
+    align-items: center; /* Vertically center items */
+    padding: 8px 15px;
+    color: #333;
+    text-decoration: none;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-item-content{
+    display: flex;
+    align-items:center;
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item.active-link {
+    width: 250px;
+    background-color: #64A296;
+    color: white;
+    border-radius:10px;
+    margin: 10px;
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item:hover{
+    color: #64A296;
+  
+  }
+   .app-sidebar .sidebar-menu .nav-item .menu-item.active-link:hover{
+    color: white;
+  
+  }
+
+
+  .app-sidebar .sidebar-menu .nav-item .menu-item .icon {
+    margin-right: 10px;
+    font-size: 1.2em;
+    min-width: 24px; /* Ensure consistent icon width */
+    display: flex; /* Center the icon within its space */
+    justify-content: center;
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item .menu-text {
+    flex-grow: 1; /* Allow text to take remaining space */
+  }
+  
+  .app-sidebar.collapsed .sidebar-menu .nav-item .menu-item .menu-text {
+    display: none; /* Hide text when collapsed */
+  }
+  
+  .app-sidebar.collapsed .sidebar-menu .nav-item .menu-item .icon {
+    margin-right: 10px; /* No margin for icon when collapsed */
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item .tooltip {
+    position: absolute;
+    left: 10px; /* Adjust based on collapsed sidebar width */
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    white-space: nowrap;
+    overflow:none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    z-index: 10;
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item:hover .tooltip,
+  .app-sidebar .sidebar-menu .nav-item .menu-item.active-link .tooltip {
+    opacity: 1;
+    visibility:none;
+  }
+  
+  .app-sidebar .sidebar-menu .nav-item .menu-item .tooltip-icon {
+    display: none; /* Hide the icon in the tooltip for this layout */
+    margin-right: 5px;
+  }
+  
+  .app-sidebar.collapsed .sidebar-menu .nav-item .menu-item .tooltip {
+    left: 65px; /* Adjust tooltip position when collapsed */
+  }
+  
+  .app-sidebar .sidebar-footer {
+    /* Existing footer styles */
+  }
+  
+  .app-sidebar.collapsed .sidebar-footer button {
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .app-sidebar.collapsed .sidebar-footer button span {
+    display: none; /* Hide logout text when collapsed */
+  }
+  
+  .app-sidebar.collapsed .sidebar-footer button .tooltip {
+    left: 65px; /* Adjust tooltip position for logout button */
+  }
+  
+  .app-sidebar .sidebar-footer button .menu-item-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .app-sidebar.collapsed .sidebar-footer button .menu-item-content {
+    justify-content: center;
+  }
