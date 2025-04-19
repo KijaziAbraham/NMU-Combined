@@ -1,46 +1,51 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { BsPlusLg } from "react-icons/bs";
+import Button from 'react-bootstrap/Button';
+import Container from 'react-bootstrap/Container';
+import Form from 'react-bootstrap/Form';
+import Nav from 'react-bootstrap/Nav';
+import Navbar from 'react-bootstrap/Navbar';
+import NavDropdown from 'react-bootstrap/NavDropdown';
 
-// Separate Header Component
-const Navbar = ({ user, searchTerm, setSearchTerm, handleShowSubmitModal, userRole }) => {
+const DashboardNavbar = ({ user, searchTerm, setSearchTerm, handleShowSubmitModal, userRole }) => {
   const navigate = useNavigate();
+  
   return (
-    <div className="navibar-dashboard d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h2 className="mb-0 text-capitalize">
+    <Navbar expand="lg" className="bg-body-light mb-2" style={{borderBottom:"2px solid gray"}}>
+      <Container fluid>
+        <Navbar.Brand className="text-capitalize text-bg" style={{fontSize:'1.5rem',color:'#64A293'}}>
           {user ? `${user.role}` : "User"}
-        </h2>
-      </div>
-      <div className="d-flex align-items-center">
-        <div className="input-group me-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search prototypes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button className="btn btn-outline-success" type="button">
-            Search Prototype
-          </button>
-        </div>
-        {(userRole === 'student' || userRole === 'admin' || userRole === 'staff') && (
-          <button className="btn btn-success me-3" onClick={handleShowSubmitModal}>
-            <BsPlusLg />
-          </button>
-        )}
-        <div className="avatar">
-          <img
-            src={require("../pages/auth/assets/img/man.png")}
-            alt="User Avatar"
-            className="rounded-circle"
-            width="50"
-            height="50"
-          />
-        </div>
-      </div>
-    </div>
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="navbarScroll" />
+        <Navbar.Collapse id="navbarScroll">
+          <Nav className="me-auto my-2 my-lg-0" navbarScroll>
+            {/* You can add navigation items here if needed */}
+          </Nav>
+          <Form className="d-flex">
+            <Form.Control
+              type="search"
+              placeholder="Search prototypes..."
+              className="me-2"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Button variant="outline-success">Search</Button>
+          </Form>
+          {(userRole === 'student' || userRole === 'admin' || userRole === 'staff') && (
+            <Button 
+              variant="success" 
+              className="ms-2" 
+              onClick={handleShowSubmitModal}
+            >
+              <BsPlusLg />
+            </Button>
+          )}
+
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 };
-export default Navbar;
+
+export default DashboardNavbar;
