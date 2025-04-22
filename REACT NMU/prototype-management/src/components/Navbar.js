@@ -22,16 +22,17 @@ const DashboardNavbar = ({ user, searchTerm, setSearchTerm, handleShowSubmitModa
           <Nav className="me-auto my-2 my-lg-0" navbarScroll>
             {/* You can add navigation items here if needed */}
           </Nav>
-          <Form className="d-flex">
-            <Form.Control
+          <div className="controls-row">
+              <div class="search-control">
+                <input
               type="search"
               placeholder="Search prototypes..."
               className="me-2"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            </div>
             <Button variant="outline-success">Search</Button>
-          </Form>
           {(userRole === 'student' || userRole === 'admin' || userRole === 'staff') && (
             <Button 
               variant="success" 
@@ -41,7 +42,7 @@ const DashboardNavbar = ({ user, searchTerm, setSearchTerm, handleShowSubmitModa
               <BsPlusLg />
             </Button>
           )}
-
+</div>
         </Navbar.Collapse>
       </Container>
     </Navbar>

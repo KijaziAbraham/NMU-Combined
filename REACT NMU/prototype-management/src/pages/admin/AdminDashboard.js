@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import api from "api/api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import DashboardSidebar from '../../components/Sidebar';
-import DashboardHeader from '../../components/Navbar';
+import DashboardHeader from "../../components/ProfileNavbar";
 import '../../pages/Materials/css/AdminDashboard.css'
 
+
 const AdminDashboard = () => {
+    const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [generalUsers, setGeneralUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [activeModal, setActiveModal] = useState(null);
+  const [activeTab, setActiveTab] = useState("users");
+  const [error, setError] = useState(null);
+  
+
   const [modalData, setModalData] = useState({
     user: { username: "", email: "", role: "", department: "" },
     department: { name: "" },
@@ -26,6 +31,16 @@ const AdminDashboard = () => {
     users: null,
     generalUsers: null,
     departments: null
+  });
+
+  const [formData, setFormData] = useState({
+    full_name: "",
+    role: "",
+    username: "",
+    email: "",
+    phone: "",
+    institution_id: "",
+    institution_name: "",
   });
 
   useEffect(() => {
@@ -55,6 +70,32 @@ const AdminDashboard = () => {
       });
     } finally {
       setLoading(prev => ({ ...prev, users: false, generalUsers: false, departments: false }));
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await api.get("user/profile/");
+      setUser(response.data);
+      setFormData({
+        username: response.data.username || "",
+        full_name: response.data.full_name || "",
+        role: response.data.role || "",
+        department: response.data.department || "",
+        email: response.data.email || "",
+        phone: response.data.phone || "",
+        institution_id: response.data.institution_id || "",
+        institution_name: response.data.institution_name || "",
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setError("Failed to load profile");
+      setLoading(false);
     }
   };
 
@@ -179,99 +220,111 @@ const AdminDashboard = () => {
     <div className="dashboard-layout">
       <DashboardSidebar />
       <div className="main-content">
-        <DashboardHeader />
-  
-        <div className="admin-dashboard-container">
+      <DashboardHeader user={user} />
+      <div className="admin-dashboard-container">
           <h2 className="page-title">Admin Dashboard</h2>
-          <Tabs defaultValue="users">
-            <TabsList className="mb-3">
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="general">General Users</TabsTrigger>
-              <TabsTrigger value="departments">Departments</TabsTrigger>
-            </TabsList>
-  
-            {/* USERS TAB */}
-            <TabsContent value="users">
+
+          <div className="custom-tabs">
+            <button
+              className={activeTab === "users" ? "active" : ""}
+              onClick={() => setActiveTab("users")}
+            >
+              Users
+            </button>
+            <button
+              className={activeTab === "general" ? "active" : ""}
+              onClick={() => setActiveTab("general")}
+            >
+              General Users
+            </button>
+            <button
+              className={activeTab === "departments" ? "active" : ""}
+              onClick={() => setActiveTab("departments")}
+            >
+              Departments
+            </button>
+          </div>
+
+          {/* USERS TAB */}
+          {activeTab === "users" && (
+            <>
               <div className="controls-row">
-                <div className="search-control">
-                  <input
-                    type="text"
-                    placeholder="Search users..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+              <div class="search-control">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
                 </div>
-                <div 
-                  className="action-control primary"
-                  onClick={() => openModal('user')}
-                >
+                <div className="action-control primary" onClick={() => openModal("user")}>
                   <span>+</span> Add User
                 </div>
               </div>
-  
+
               {loading.users ? (
-                <div className="loading-indicator">Loading users...</div>
+                <div>Loading users...</div>
               ) : errors.users ? (
                 <div className="error-message">{errors.users}</div>
               ) : (
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Role</th>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map(user => (
+                      <tr key={user.id}>
+                        <td>{user.username}</td>
+                        <td>{user.email}</td>
+                        <td>{user.role}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.username}</td>
-                          <td>{user.email}</td>
-                          <td>{user.role}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </TabsContent>
-  
-            {/* GENERAL USERS TAB */}
-            <TabsContent value="general">
+            </>
+          )}
+
+          {/* GENERAL USERS TAB */}
+          {activeTab === "general" && (
+            <>
               <div className="controls-row">
-                <div className="search-control">
-                  <input
-                    type="text"
-                    placeholder="Search general users..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+              <div class="search-control">
+
+                <input
+                  type="text"
+                  placeholder="Search general users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
                 </div>
               </div>
-              
+
               {loading.generalUsers ? (
-                <div className="loading-indicator">Loading general users...</div>
+                <div>Loading general users...</div>
               ) : errors.generalUsers ? (
                 <div className="error-message">{errors.generalUsers}</div>
               ) : (
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Approved</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredGeneralUsers.map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.username}</td>
-                          <td>{user.email}</td>
-                          <td>{user.is_approved ? "Yes" : "No"}</td>
-                          <td>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGeneralUsers.map(user => (
+                      <tr key={user.id}>
+                        <td>{user.username}</td>
+                        <td>{user.email}</td>
+                        <td>{user.is_approved ? "Approved" : "Pending"}</td>
+                        <td>
                             {!user.is_approved && (
                               <div 
                                 className="action-control success"
@@ -284,62 +337,57 @@ const AdminDashboard = () => {
                               </div>
                             )}
                           </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </TabsContent>
-  
-            {/* DEPARTMENTS TAB */}
-            <TabsContent value="departments">
+            </>
+          )}
+
+          {/* DEPARTMENTS TAB */}
+          {activeTab === "departments" && (
+            <>
               <div className="controls-row">
-                <div className="search-control">
-                  <input
-                    type="text"
-                    placeholder="Search departments..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+              <div class="search-control">
+
+                <input
+                  type="text"
+                  placeholder="Search departments..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
                 </div>
-                <div 
-                  className="action-control primary"
-                  onClick={() => openModal('department')}
-                >
+                <div className="action-control primary" onClick={() => openModal("department")}>
                   <span>+</span> Add Department
                 </div>
               </div>
-              
+
               {loading.departments ? (
-                <div className="loading-indicator">Loading departments...</div>
+                <div>Loading departments...</div>
               ) : errors.departments ? (
                 <div className="error-message">{errors.departments}</div>
               ) : (
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Department Name</th>
-                        <th>Code</th>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDepartments.map(dept => (
+                      <tr key={dept.id}>
+                        <td>{dept.name}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredDepartments.map((dept) => (
-                        <tr key={dept.id}>
-                          <td>{dept.name}</td>
-                          <td>{dept.code}</td>  
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </TabsContent>
-          </Tabs>
+            </>
+          )}
         </div>
       </div>
-
+    
       {/* Add User Modal */}
       {activeModal === 'user' && (
         <div className="modal-overlay active">
