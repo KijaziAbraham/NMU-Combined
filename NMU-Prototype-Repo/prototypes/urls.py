@@ -6,7 +6,8 @@ from .views import (
     UserViewSet, PrototypeViewSet,
     DepartmentViewSet, AdminUserViewSet,
     change_password,
-    prototype_count_view, upload_summary_30_days
+    prototype_count_view, upload_summary_30_days,
+    UserImportTemplateView, BulkUserImportView
 )
 
 
@@ -25,5 +26,7 @@ urlpatterns = [
     path("user/change-password/", change_password, name="change-password"),
     path("count/", prototype_count_view, name="prototype-count"),
     path("30-day-summary/", upload_summary_30_days, name='upload-summary-30-days'),
+    path('admin/download_users_template/', UserImportTemplateView.as_view(), name='user-import-template'),
+    path('admin/users_import/', BulkUserImportView.as_view(), name='bulk-user-import'),
 ]
 

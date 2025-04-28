@@ -75,6 +75,14 @@ class Prototype(models.Model):
         ('submitted_not_reviewed', 'Submitted (Not Reviewed)'),
         ('submitted_reviewed', 'Submitted (Reviewed)'),  
     ]
+
+    RESEARCH_GROUP_CHOICES =[
+        ('smart_elecrtonics', 'Smart Electronics System Development Management'), 
+        ('cyber','Cyber Security and Privacy'),
+        ('ai','AI and Complexity System'),
+        ('wireless_mobile_computing', 'Wireless and Mobile Computing'),
+        ('mathematical_modeling', 'Mathematical Modeling and Computational Science'),
+    ]
 #further changes should be done here to make status be allways true since all project submitted here are approved
     student = models.ForeignKey(
         CustomUser,
@@ -86,18 +94,15 @@ class Prototype(models.Model):
     abstract = models.TextField()
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     academic_year = models.CharField(max_length=9)  #Format: 2023/2024
-    supervisor = models.ForeignKey(
+    supervisors = models.ManyToManyField(
         CustomUser,
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
-        related_name="supervised_prototypes",
+        related_name='supervising_prototypes',
         limit_choices_to={'role__in': ['staff', 'admin']}
     )
     submission_date = models.DateTimeField(auto_now_add=True)
     last_modified = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='submitted_not_reviewed') #further changes should be done here to make status be allways true since all project submitted here are approved
-
     has_physical_prototype = models.BooleanField(default=False)
     barcode = models.CharField(max_length=50, unique=True, blank=True, null=True)
     storage_location = models.CharField(max_length=100, blank=True)
@@ -110,6 +115,8 @@ class Prototype(models.Model):
         related_name='reviewed_prototypes',
         limit_choices_to={'role__in': ['staff', 'admin']}
     )
+    research_group=models.CharField(max_length=50, choices=RESEARCH_GROUP_CHOICES, blank=True, null=True, verbose_name='Research Group')
+    project_link=models.URLField(max_length=500, blank=True, null=True, help_text="Link to the project repository or website.")
 
     class Meta:
         ordering = ['-submission_date']
@@ -121,6 +128,11 @@ class Prototype(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.student.email})"
+    
+    def clean(self):
+        if self.pk and self.supervisors.count() > 5:
+            raise ValidationError("A prototype cannot have more than 5 supervisors.")
+
 
     def save(self, *args, **kwargs):
         if self.has_physical_prototype and not self.barcode:

@@ -31,7 +31,24 @@ from collections import defaultdict
 from .serializers import GeneralUserRegistrationSerializer
 from rest_framework import generics
 from rest_framework.permissions import IsAdminUser
-
+from django.http import HttpResponse
+import openpyxl
+from openpyxl.styles import Font
+from django.contrib.auth.decorators import user_passes_test
+import pandas as pd
+from django.contrib import messages
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.shortcuts import render, redirect
+from rest_framework.views import APIView
+from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+from rest_framework import status
+from django.core.validators import RegexValidator
+import re
 
 class GeneralUserRegistrationView(generics.CreateAPIView):
     serializer_class = GeneralUserRegistrationSerializer
@@ -349,3 +366,287 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.is_approved = True
         user.save()
         return Response({'detail': f'User {user.username} approved.'})
+    
+
+
+logger = logging.getLogger(__name__)
+
+class UserImportTemplateView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        """Generate and download professional user import template"""
+        try:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "User Import Template"
+            
+            # Defining styles
+            header_font = Font(bold=True, color="FFFFFF", size=12)
+            header_fill = PatternFill(
+                start_color="64A293",  
+                end_color="64A293",
+                fill_type="solid"
+            )
+            description_font = Font(italic=True, color="808080")
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            center_aligned = Alignment(horizontal='center')
+            
+            # Defining data - Removed username column
+            headers = [
+                ("Email", "Required (must be unique email address)"),
+                ("Full Name", "Required"),
+                ("Role", "Required (select from dropdown)"),
+                ("Department Code", "Optional (must match existing codes)"),
+                ("Phone", "Required"),
+                ("Institution ID", "Optional"),
+                ("Level", "Required if Role=Student")
+            ]
+            
+            # University header
+            ws.merge_cells('A1:G1')
+            ws['A1'] = "NM UNIVERSITY - USER IMPORT TEMPLATE"
+            ws['A1'].font = Font(bold=True, size=14, color="64A293")
+            ws['A1'].alignment = Alignment(horizontal='center')
+            
+            # Instructions
+            ws.merge_cells('A3:G5')
+            ws['A3'] = """INSTRUCTIONS:
+1. Fill in all required fields (Email, Full Name, Phone, Role)
+2. For dropdown fields, select from the available options
+3. Students must include Level (phd/masters)
+4. Department codes must match existing values
+5. Password will be set to the user's email initially"""
+            ws['A3'].font = Font(size=10)
+            ws['A3'].alignment = Alignment(wrap_text=True, vertical='top')
+            
+            # Header row
+            for col, (header, _) in enumerate(headers, start=1):
+                cell = ws.cell(row=7, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = thin_border
+                cell.alignment = center_aligned
+                # Set column width
+                ws.column_dimensions[get_column_letter(col)].width = 22
+            
+            # Description row
+            for col, (_, description) in enumerate(headers, start=1):
+                cell = ws.cell(row=8, column=col, value=description)
+                cell.font = description_font
+                cell.border = thin_border
+            
+            # Data validation for role field (admin/staff/student only)
+            role_dv = DataValidation(
+                type="list",
+                formula1='"admin,staff,student"',
+                allow_blank=False,
+                showErrorMessage=True,
+                error="Must be admin, staff, or student"
+            )
+            ws.add_data_validation(role_dv)
+            role_dv.add("C9:C1048576")  
+            
+            # Data validation for level field
+            level_dv = DataValidation(
+                type="list",
+                formula1='"phd,masters"',
+                allow_blank=True
+            )
+            ws.add_data_validation(level_dv)
+            level_dv.add("G9:G1048576")  
+            
+            # Example data row
+            example_data = [
+                "herieth@nmu.edu",
+                "Herieth John",
+                "student",  # Dropdown
+                "CS",
+                "+1234567890",
+                "STD12345",
+                "masters"  # Dropdown
+            ]
+            for col, value in enumerate(example_data, start=1):
+                cell = ws.cell(row=9, column=col, value=value)
+                cell.border = thin_border
+            
+            # Freeze header row
+            ws.freeze_panes = "A9"
+            
+            # Create binary response
+            buffer = BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response['Content-Disposition'] = (
+                'attachment; filename="NMU_User_Import_Template.xlsx"'
+            )
+            return response
+            
+        except Exception as e:
+            logger.error(f"Template generation error: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Failed to generate template"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+
+logger = logging.getLogger(__name__)
+
+class BulkUserImportView(APIView):
+    permission_classes = [IsAdminUser]
+    parser_classes = [MultiPartParser]
+
+    @transaction.atomic
+    def post(self, request):
+        try:
+            if 'excel_file' not in request.FILES:
+                return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            excel_file = request.FILES['excel_file']
+
+            try:
+                df = pd.read_excel(excel_file, header=6, skiprows=[7])  # Skip instruction row
+                df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+            except Exception as e:
+                return Response({'error': f'Invalid Excel file: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+            expected_columns = {
+                'email': ['email', 'e-mail', 'email_address'],
+                'full_name': ['full_name', 'name', 'fullname'],
+                'role': ['role', 'user_role', 'account_type'],
+                'phone': ['phone', 'phone_number', 'mobile'],
+                'department_code': ['department_code', 'dept_code', 'department'],
+                'institution_id': ['institution_id', 'id_number', 'student_id'],
+                'level': ['level', 'student_level', 'degree_level']
+            }
+
+            column_mapping = {}
+            missing_columns = []
+
+            for expected, alternatives in expected_columns.items():
+                for alt in alternatives:
+                    if alt in df.columns:
+                        column_mapping[expected] = alt
+                        break
+                else:
+                    if expected in ['email', 'full_name', 'role', 'phone']:
+                        missing_columns.append(expected)
+
+            if missing_columns:
+                return Response(
+                    {'error': f'Missing required columns: {", ".join(missing_columns)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            success_count = 0
+            errors = []
+            valid_roles = ['admin', 'staff', 'student']
+            valid_levels = ['phd', 'masters']
+            phone_validator = RegexValidator(regex=r'^\+?[0-9]{10,15}$', message='Invalid phone number format')
+
+            for index, row in df.iterrows():
+                row_num = index + 2
+                try:
+                    email = row[column_mapping['email']]
+                    full_name = row[column_mapping['full_name']]
+                    role = row[column_mapping['role']].strip().lower() if pd.notna(row[column_mapping['role']]) else None
+                    phone = row[column_mapping['phone']]
+
+                    # Required field validation
+                    if pd.isna(email):
+                        raise ValidationError('Email is required')
+                    if pd.isna(full_name):
+                        raise ValidationError('Full name is required')
+                    if pd.isna(role):
+                        raise ValidationError('Role is required')
+                    if pd.isna(phone):
+                        raise ValidationError('Phone is required')
+
+                    if role not in valid_roles:
+                        raise ValidationError(f'Invalid role: {role}. Must be admin, staff, or student')
+
+                    # Phone validation
+                    phone_str = str(phone).strip()
+                    phone_validator(phone_str)
+
+                    # Department (optional)
+                    department = None
+                    if 'department_code' in column_mapping and pd.notna(row[column_mapping['department_code']]):
+                        try:
+                            department = Department.objects.get(code=row[column_mapping['department_code']])
+                        except Department.DoesNotExist:
+                            raise ValidationError(f'Department not found: {row[column_mapping["department_code"]]}')
+
+                    institution_id = row[column_mapping['institution_id']] if 'institution_id' in column_mapping else ''
+
+                    # Validate level if student
+                    level = None
+                    if role == 'student':
+                        if 'level' not in column_mapping or pd.isna(row[column_mapping['level']]):
+                            raise ValidationError('Students require level (phd/masters)')
+                        level = row[column_mapping['level']].strip().lower()
+                        if level not in valid_levels:
+                            raise ValidationError(f'Invalid level: {level}. Must be phd or masters')
+
+                    if CustomUser.objects.filter(email=email).exists():
+                        raise ValidationError('User with this email already exists')
+
+                    # Generate username from full_name
+                    base_username = re.sub(r'\s+', '', full_name.lower())
+                    username = base_username
+                    counter = 1
+                    while CustomUser.objects.filter(username=username).exists():
+                        username = f"{base_username}{counter}"
+                        counter += 1
+
+                    user = CustomUser(
+                        email=email,
+                        username=username,
+                        full_name=full_name.strip(),
+                        role=role,
+                        phone=phone_str,
+                        department=department,
+                        institution_id=institution_id,
+                        is_approved=True,
+                        level=level if role == 'student' else None,
+                         is_staff=(role == 'admin')
+
+                    )
+                    user.set_password(email)
+                    user.save()
+
+                    success_count += 1
+
+                except Exception as e:
+                    errors.append({
+                        'row': row_num,
+                        'error': str(e),
+                        'data': {k: v for k, v in row.items() if pd.notna(v)}
+                    })
+                    continue
+
+            response_data = {
+                'success_count': success_count,
+                'error_count': len(errors),
+                'errors': errors[:100]
+            }
+
+            return Response(response_data, status=status.HTTP_207_MULTI_STATUS if errors else status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Bulk import failed: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Internal server error during import'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
