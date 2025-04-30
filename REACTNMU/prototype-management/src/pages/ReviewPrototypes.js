@@ -6,6 +6,7 @@ import api from '../api/api';
 import "../pages/Materials/css/ReviewPrototype.css";
 import {  Dropdown } from 'react-bootstrap';
 import { PencilSquare, Eye, ChatDots } from 'react-bootstrap-icons';
+import { TiCloudStorage } from "react-icons/ti";
 import ViewPrototypeModal from './ViewPrototype';
 import EditPrototypeModal from './EditPrototype';
 import ReviewPrototypeModal from "../components/ReviewPrototypeModal";
@@ -350,18 +351,18 @@ const ReviewPrototypes = () => {
 
                           {user?.role === 'student' && prototype.student.id === user.id && (
                             <button className="btn btn-warning btn-sm edit-btn" onClick={() => handleEditClick(prototype.id)}>
-                              <PencilSquare /> <span className="btn-text">Edit</span>
+                              <PencilSquare /> <span className="btn-text"> Edit</span>
                             </button>
                           )}
 
                           {(user?.role === 'staff' || user?.role === 'admin') && (
                             <>
                               <button className="btn btn-primary btn-sm review-btn" onClick={() => handleReviewClick(prototype.id)}>
-                                <ChatDots /> <span className="btn-text">Review</span>
+                                <ChatDots /> <span className="btn-text"> Review</span>
                               </button>
 
                               <button className="btn btn-secondary btn-sm storage-btn" onClick={() => handleAssignStorageClick(prototype.id)}>
-                                <span className="btn-text">Assign Storage</span>
+                              <TiCloudStorage /> <span className="btn-text"> Assign Storage</span>
                               </button>
                             </>
                           )}
